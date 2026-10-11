@@ -66,6 +66,8 @@ agb-ui = { path = "/path/to/agb-ui" }
 
 or for one command: `cargo build --config 'patch."https://github.com/farmisen/agb-ui".agb-ui.path="../agb-ui"'`.
 
+A patched build rewrites the game's `Cargo.lock` to the local checkout (agb-ui loses its `source` line). Don't commit that: build once without the patch to put the git source back, or `git checkout Cargo.lock`.
+
 ## License
 
 Licensed under either of
