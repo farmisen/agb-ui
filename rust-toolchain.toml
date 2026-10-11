@@ -1,0 +1,6 @@
+[toolchain]
+# agb requires nightly for build-std (core + alloc are rebuilt for thumbv4t).
+# Pinned: nightly-2026-09-28 gated Vec allocator APIs behind `allocator_ext`,
+# which breaks agb_hashmap 0.25.0. Move forward only alongside an agb bump.
+channel = "nightly-2026-09-20"
+components = ["rust-src", "clippy", "rustfmt"]

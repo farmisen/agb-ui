@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Installs the pinned nightly + rust-src/clippy/rustfmt from rust-toolchain.toml.
+      - name: Install toolchain
+        run: rustup toolchain install
+
+      - name: Format
+        run: make fmt-check
+
+      # The menu logic and layout, on the host.
+      - name: Tests
+        run: make test
+
+      # With agb, for the GBA: what games build.
+      - name: Clippy (GBA)
+        run: make clippy
+
+      - name: Clippy (host, tests)
+        run: make clippy-host
