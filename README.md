@@ -13,7 +13,7 @@ agb-ui isn't on crates.io. Take it from git, pinned to a tag:
 
 ```toml
 [dependencies]
-agb-ui = { git = "https://github.com/farmisen/agb-ui", tag = "v0.1.0" }
+agb-ui = { git = "https://github.com/farmisen/agb-ui", tag = "v0.1.1" }
 ```
 
 It needs agb 0.25.
