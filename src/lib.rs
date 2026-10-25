@@ -13,8 +13,8 @@
 //! so a game can draw some menus with it and others itself.
 //!
 //! The rules every menu follows:
-//! - ▲ / ▼ move the selection, wrapping at the ends, scrolling the window of rows
-//!   shown. ◀ / ▶ cycle a row's choices, if it has any. A picks the row.
+//! - ▲ / ▼ move the selection, wrapping at the ends (stopping there with
+//!   [`Menu::without_wrap`]), scrolling the window of rows shown. ◀ / ▶ cycle a row's choices, if it has any. A picks the row.
 //! - A disabled row can be selected, but A (and ◀ / ▶) on it is refused.
 //! - BACK, if the menu has it, is its last row. B does what BACK does when the menu
 //!   has a way back (a BACK row, or [`Menu::with_back_button`]), and nothing

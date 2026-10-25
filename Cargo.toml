@@ -1,6 +1,6 @@
 [package]
 name = "agb-ui"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "Menus for agb games: a headless core (rows, choices, scrolling, BACK, disabled rows) and an optional layout and redraw helper"
 license = "MIT OR Apache-2.0"
