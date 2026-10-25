@@ -26,7 +26,8 @@ pub trait MenuRenderer {
         }
     }
 
-    /// The box `at` and its title, with nothing else in it.
+    /// The box `at` and its title, with nothing else in it: the title on row `at.title_y`
+    /// from column [`Layout::title_x`], centred in the box.
     fn draw_box(&mut self, at: &Layout, title: Option<&str>);
 
     /// Clear what `draw_box` and the rest drew in `at`.
@@ -90,7 +91,10 @@ impl<'a> Frame<'a> {
     };
 }
 
-/// Where a menu's box and rows go, in cells. Centred. Inside the border, top down: the
+/// Where a menu's box and rows go, in cells. Centred on the screen, a titled box one column
+/// wider when that centres its title in it (a title and a box of the same parity: the title is
+/// what the eye checks; on a screen of even width, an odd box then sits half a cell left).
+/// Inside the border, top down: the
 /// title, a blank line (▲ when rows are hidden above), the header and a blank line if
 /// any, the rows two apart (▼ on the blank line after the last when rows are hidden
 /// below), then the description and a blank line if any row has one. Across: a blank
@@ -162,10 +166,13 @@ impl Layout {
         let title = frame.title.map_or(0, chars);
         // A blank column and the border after the content; room for the rest, a blank
         // column and the border either side.
-        let w = (content + 2)
+        let mut w = (content + 2)
             .max(title + 4)
             .max(frame.header_cols + 4)
             .max(description_w + 4);
+        if frame.title.is_some() && (w - title) % 2 != 0 && w < R::COLS {
+            w += 1;
+        }
         let shown = menu.shown() as i32;
         let header = if frame.header_rows > 0 {
             frame.header_rows + 1
@@ -208,6 +215,12 @@ impl Layout {
     /// The screen row of the `slot`th row shown.
     pub fn row_y(&self, slot: usize) -> i32 {
         self.list_y + 2 * slot as i32
+    }
+
+    /// The column `title` starts at, centred in the box (exactly, the box's width and the
+    /// title's having the same parity: `Layout::new` sees to it).
+    pub fn title_x(&self, title: &str) -> i32 {
+        self.x + (self.w - title.chars().count() as i32) / 2
     }
 }
 
@@ -454,10 +467,12 @@ mod tests {
             &Fixed,
             &Frame::titled("OPTIONS"),
         );
-        // 5 to the labels, 5 of them, a blank, ◀ CLASSIC ▶, a blank and the border.
-        assert_eq!((at.w, at.h), (22, 12));
-        assert_eq!((at.x, at.y), (4, 4));
-        assert_eq!((at.label_x, at.choice_x, at.cursor_x), (9, 15, 6));
+        // 5 to the labels, 5 of them, a blank, ◀ CLASSIC ▶, a blank and the border: 22, and
+        // one more to centre the 7-letter title.
+        assert_eq!((at.w, at.h), (23, 12));
+        assert_eq!((at.x, at.y), (3, 4));
+        assert_eq!((at.label_x, at.choice_x, at.cursor_x), (8, 14, 5));
+        assert_eq!(at.title_x("OPTIONS"), 11);
         assert_eq!((at.title_y, at.list_y), (Some(5), 7));
         assert_eq!(at.description_y, None);
     }
@@ -476,9 +491,45 @@ mod tests {
             ..Frame::titled("GAME OVER")
         };
         let at = Layout::new(&Log::default(), &Menu::new(&GAME_OVER), &Fixed, &frame);
-        assert_eq!((at.x, at.y, at.w, at.h), (4, 2, 22, 16));
+        // 22 wide, and one more to centre the 9-letter title.
+        assert_eq!((at.x, at.y, at.w, at.h), (3, 2, 23, 16));
         assert_eq!((at.title_y, at.header_y, at.right), (Some(3), 5, 24));
         assert_eq!((at.row_y(0), at.row_y(1)), (13, 15));
+    }
+
+    #[test]
+    fn centres_the_title_in_the_box() {
+        // Every title, odd or even, with as many blank columns either side inside the border;
+        // an untitled box keeps its width.
+        let menu = Menu::new(&ROWS);
+        let untitled = Layout::new(&Log::default(), &menu, &Fixed, &Frame::UNTITLED);
+        for title in [
+            "T",
+            "UP",
+            "~ PAUSED ~",
+            "~ DEBUG ~",
+            "~ THE TINIES ~",
+            "~ THE TINIES~",
+        ] {
+            let at = Layout::new(&Log::default(), &menu, &Fixed, &Frame::titled(title));
+            let len = title.chars().count() as i32;
+            let (left, right) = (
+                at.title_x(title) - at.x,
+                at.x + at.w - (at.title_x(title) + len),
+            );
+            assert_eq!(left, right, "{title}: box {} wide", at.w);
+            assert!(at.w - untitled.w <= 1 || len + 4 > untitled.w, "{title}");
+        }
+        // An even title in an even box, so both centre: the box on the 30-column screen too.
+        let at = Layout::new(
+            &Log::default(),
+            &menu,
+            &Fixed,
+            &Frame::titled("~ THE TINIES ~"),
+        );
+        assert_eq!(at.w % 2, 0);
+        assert_eq!(at.x, (Log::COLS - at.w) / 2);
+        assert_eq!(2 * at.x + at.w, Log::COLS);
     }
 
     #[test]
