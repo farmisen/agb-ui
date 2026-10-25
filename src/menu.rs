@@ -161,6 +161,8 @@ pub struct Menu<Id: Copy + 'static> {
     window: usize,
     /// B goes back though there's no BACK row.
     back_button: bool,
+    /// ▲ on the first row and ▼ on the last go round to the other end.
+    wrap: bool,
     /// Each row's choice, an index into its `choices`.
     values: Vec<u8>,
 }
@@ -187,6 +189,7 @@ impl<Id: Copy + PartialEq> Menu<Id> {
             top: 0,
             window: rows.len(),
             back_button: false,
+            wrap: true,
             values: vec![0; rows.len()],
         }
     }
@@ -194,6 +197,13 @@ impl<Id: Copy + PartialEq> Menu<Id> {
     /// B goes back without a BACK row: a pause menu's RESUME is its way back.
     pub fn with_back_button(mut self) -> Self {
         self.back_button = true;
+        self
+    }
+
+    /// ▲ on the first row and ▼ on the last do nothing, rather than going round to the other
+    /// end (a game whose cursor walks from row to row: there's no walking round).
+    pub fn without_wrap(mut self) -> Self {
+        self.wrap = false;
         self
     }
 
@@ -292,10 +302,10 @@ impl<Id: Copy + PartialEq> Menu<Id> {
         }
         let n = self.rows.len();
         let before = self.selected;
-        if input.up {
+        if input.up && (self.wrap || self.selected > 0) {
             self.selected = step(self.selected, n, false);
         }
-        if input.down {
+        if input.down && (self.wrap || self.selected + 1 < n) {
             self.selected = step(self.selected, n, true);
         }
         self.scroll_to_selected();
@@ -387,6 +397,19 @@ mod tests {
         );
         assert_eq!(m.selected(), R::A);
         assert_eq!(m.update(Input::default(), &Fixed), None);
+    }
+
+    #[test]
+    fn stops_at_the_ends_without_wrap() {
+        let mut m = Menu::new(&ROWS).without_wrap();
+        assert_eq!(m.update(press(|i| i.up = true), &Fixed), None);
+        assert_eq!(m.selected(), R::A);
+        m.select(R::Back);
+        assert_eq!(m.update(press(|i| i.down = true), &Fixed), None);
+        assert_eq!(m.selected(), R::Back);
+        // Between the ends, as with wrap.
+        assert_eq!(m.update(press(|i| i.up = true), &Fixed), Some(Event::Moved));
+        assert_ne!(m.selected(), R::Back);
     }
 
     #[test]
