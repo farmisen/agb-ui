@@ -62,6 +62,9 @@ pub struct RowView<'a> {
 pub struct Frame<'a> {
     /// On the first line inside the box.
     pub title: Option<&'a str>,
+    /// Blank lines under the title besides the one every titled box has (where ▲ shows);
+    /// 0 for none. Ignored without a title.
+    pub title_gap: i32,
     /// Lines between the title and the list that the game draws itself (a run summary),
     /// then a blank line; 0 for none.
     pub header_rows: i32,
@@ -84,6 +87,7 @@ impl<'a> Frame<'a> {
 
     pub const UNTITLED: Frame<'static> = Frame {
         title: None,
+        title_gap: 0,
         header_rows: 0,
         header_cols: 0,
         list: true,
@@ -95,7 +99,7 @@ impl<'a> Frame<'a> {
 /// wider when that centres its title in it (a title and a box of the same parity: the title is
 /// what the eye checks; on a screen of even width, an odd box then sits half a cell left).
 /// Inside the border, top down: the
-/// title, a blank line (▲ when rows are hidden above), the header and a blank line if
+/// title and `Frame::title_gap` blank lines, a blank line (▲ when rows are hidden above), the header and a blank line if
 /// any, the rows two apart (▼ on the blank line after the last when rows are hidden
 /// below), then the description and a blank line if any row has one. Across: a blank
 /// column, the cursor, a blank column, the icons and a blank column if any row has
@@ -180,14 +184,12 @@ impl Layout {
             0
         };
         let description = description_w > 0;
-        let h = 3
-            + i32::from(frame.title.is_some())
-            + header
-            + 2 * shown
-            + if description { 2 } else { 0 };
+        // The title's line and the blank lines it asks for under it.
+        let title_rows = frame.title.map_or(0, |_| 1 + frame.title_gap.max(0));
+        let h = 3 + title_rows + header + 2 * shown + if description { 2 } else { 0 };
         let x = (R::COLS - w) / 2;
         let y = (R::ROWS - h) / 2;
-        let header_y = y + 2 + i32::from(frame.title.is_some());
+        let header_y = y + 2 + title_rows;
         let list_y = header_y + header;
         let down_y = list_y + 2 * shown - 1;
         Self {
@@ -530,6 +532,33 @@ mod tests {
         assert_eq!(at.w % 2, 0);
         assert_eq!(at.x, (Log::COLS - at.w) / 2);
         assert_eq!(2 * at.x + at.w, Log::COLS);
+    }
+
+    #[test]
+    fn title_gap_puts_blank_lines_under_the_title() {
+        let menu = Menu::new(&ROWS).with_window(3);
+        let plain = Layout::new(&Log::default(), &menu, &Fixed, &Frame::titled("T"));
+        let gap = Frame {
+            title_gap: 1,
+            ..Frame::titled("T")
+        };
+        let at = Layout::new(&Log::default(), &menu, &Fixed, &gap);
+        // A line taller, the rows a line further from the title, ▲ just above them.
+        assert_eq!(at.h, plain.h + 1);
+        assert_eq!(
+            at.list_y - at.title_y.unwrap(),
+            plain.list_y - plain.title_y.unwrap() + 1
+        );
+        assert_eq!(at.up_y, at.list_y - 1);
+        // Nothing without a title.
+        let untitled = Frame {
+            title_gap: 1,
+            ..Frame::UNTITLED
+        };
+        assert_eq!(
+            Layout::new(&Log::default(), &menu, &Fixed, &untitled),
+            Layout::new(&Log::default(), &menu, &Fixed, &Frame::UNTITLED)
+        );
     }
 
     #[test]
